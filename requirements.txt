@@ -1,0 +1,9 @@
+flask
+torch
+numpy
+pandas
+scapy
+cicflowmeter
+requests
+sklearn
+
