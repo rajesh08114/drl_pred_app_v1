@@ -2,45 +2,111 @@
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+    load_dotenv = None
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CAPAPP_ROOT = Path(__file__).resolve().parents[1]
+
+if load_dotenv is not None:
+    load_dotenv(PROJECT_ROOT / ".env")
+
+
+def _get_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _get_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return int(value)
+
+
+def _get_path(name: str, default: Path) -> Path:
+    value = os.getenv(name)
+    path = Path(value).expanduser() if value is not None else default
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path.resolve()
+
+
 class Config:
     """
-    Centralized configuration for the disk-based DDoS detection pipeline.
+    Centralized configuration for the DDoS detection application.
     """
-    # 1. DIRECTORY STRUCTURE
-    BASE_DIR = Path(__file__).parent.parent
-    CAPTURE_DIR = BASE_DIR / "capture_output"
-    IN_PROGRESS_DIR = CAPTURE_DIR / "in_progress"
-    FEATURES_DIR = BASE_DIR / "features_output"
-    ERROR_DIR = CAPTURE_DIR / "error"
-    LOG_DIR = BASE_DIR / "logs"
 
-    # 2. CAPTURE & ROTATION SETTINGS
+    PROJECT_ROOT = PROJECT_ROOT
+    CAPAPP_ROOT = CAPAPP_ROOT
+
+    # Core directories
+    CAPTURE_DIR = CAPAPP_ROOT / "capture_output"
+    IN_PROGRESS_DIR = CAPTURE_DIR / "in_progress"
+    FEATURES_DIR = CAPAPP_ROOT / "features_output"
+    ERROR_DIR = CAPTURE_DIR / "error"
+    LOG_DIR = CAPAPP_ROOT / "logs"
+    PREDICTIONS_DIR = PROJECT_ROOT / "data" / "predictions"
+    MODEL_DIR = PROJECT_ROOT / "detection_module" / "trained_models"
+
+    # Flask app settings
+    FLASK_HOST = os.getenv("FLASK_HOST", "0.0.0.0")
+    FLASK_PORT = _get_int("FLASK_PORT", 5000)
+    FLASK_DEBUG = _get_bool("FLASK_DEBUG", True)
+    FLASK_APP_URL = os.getenv("FLASK_APP_URL", f"http://127.0.0.1:{FLASK_PORT}")
+
+    # Capture settings
     CAPTURE_INTERFACE = os.getenv("CAPTURE_INTERFACE", "enp0s3")
     CAPTURE_FILTER = os.getenv("CAPTURE_FILTER", "")
-    ROTATE_INTERVAL_SECONDS = 30
-    ROTATE_MAX_SIZE_MB = 50
+    ROTATE_INTERVAL_SECONDS = _get_int("ROTATE_INTERVAL_SECONDS", 30)
+    ROTATE_MAX_SIZE_MB = _get_int("ROTATE_MAX_SIZE_MB", 50)
 
-    # 3. DISPATCHER & PROCESSING SETTINGS
-    DISPATCHER_POLL_INTERVAL_SECONDS = 5
-    MAX_PROCESSING_WORKERS = (os.cpu_count() or 1)
-    # --- FIX: Added a dedicated, longer timeout for feature extraction ---
-    PROCESSING_TIMEOUT_SECONDS = 300  # 5 minutes
+    # Dispatcher and processing settings
+    DISPATCHER_POLL_INTERVAL_SECONDS = _get_int("DISPATCHER_POLL_INTERVAL_SECONDS", 5)
+    MAX_PROCESSING_WORKERS = _get_int("MAX_PROCESSING_WORKERS", os.cpu_count() or 1)
+    PROCESSING_TIMEOUT_SECONDS = _get_int("PROCESSING_TIMEOUT_SECONDS", 300)
 
+    # Feature extraction thresholds
+    FLOW_TIMEOUT_NS = _get_int("FLOW_TIMEOUT_NS", 1_200_000_000)
+    MAX_FLOW_DURATION_NS = _get_int("MAX_FLOW_DURATION_NS", 120_000_000_000)
+    ACTIVE_THRESHOLD_US = _get_int("ACTIVE_THRESHOLD_US", 1_000_000)
 
-    FLOW_TIMEOUT_NS = 1_200_000_000  # 1.2 seconds (inactivity timeout)
-    MAX_FLOW_DURATION_NS = 120_000_000_000  # 120 seconds (max flow duration)
-    ACTIVE_THRESHOLD_US = 1_000_000
+    # Model and prediction pipeline settings
+    MODEL_PATH = _get_path("MODEL_PATH", MODEL_DIR / "final_drl1.pt")
+    PREDICTION_OUTPUT_DIR = _get_path("PREDICTION_OUTPUT_DIR", PREDICTIONS_DIR)
+    PROCESSED_FEATURES_DIR = _get_path("PROCESSED_FEATURES_DIR", FEATURES_DIR)
+    FORCE_CPU = _get_bool("FORCE_CPU", True)
+    QUEUE_MAXSIZE = _get_int("QUEUE_MAXSIZE", 10)
 
+    # Model updater settings
+    MODEL_API_URL = os.getenv(
+        "MODEL_API_URL",
+        "http://192.168.0.208:8000/api/pipeline/model/download",
+    )
+    MODEL_UPDATE_INTERVAL_HOURS = _get_int("MODEL_UPDATE_INTERVAL_HOURS", 2)
 
     @classmethod
     def setup_directories(cls):
         """Creates all necessary directories for the pipeline to operate."""
         print("Setting up required directories...")
         for directory in [
-            cls.CAPTURE_DIR, cls.IN_PROGRESS_DIR, cls.FEATURES_DIR,
-            cls.ERROR_DIR, cls.LOG_DIR
+            cls.CAPTURE_DIR,
+            cls.IN_PROGRESS_DIR,
+            cls.FEATURES_DIR,
+            cls.ERROR_DIR,
+            cls.LOG_DIR,
+            cls.PREDICTIONS_DIR,
+            cls.MODEL_DIR,
+            cls.PROCESSED_FEATURES_DIR,
+            cls.PREDICTION_OUTPUT_DIR,
         ]:
             directory.mkdir(parents=True, exist_ok=True)
         print("Directories are ready.")
+
 
 config = Config()

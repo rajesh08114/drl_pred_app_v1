@@ -6,4 +6,4 @@ scapy
 cicflowmeter
 requests
 sklearn
-
+python-dotenv

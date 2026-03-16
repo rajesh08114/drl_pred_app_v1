@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from core.controller import start_pipeline, stop_pipeline,pipeline_status,is_pipeline_running,get_recent_detections,get_detection_details,controller
 from detection_module.detection import EnhancedPPOAgent, EnhancedDDoSEnvironment
+from capapp.config.settings import config
 
 app = Flask(__name__)
 
@@ -152,4 +153,4 @@ if __name__ == '__main__':
         print("  sudo setcap cap_net_raw,cap_net_admin+eip {}".format(sys.executable))
         print("Or run with: sudo {} {}\n".format(sys.executable, __file__))
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host=config.FLASK_HOST, port=config.FLASK_PORT, debug=config.FLASK_DEBUG)

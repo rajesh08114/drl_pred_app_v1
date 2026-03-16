@@ -34,7 +34,7 @@ class LocalPredictionPipeline:
     def __init__(self, 
                  model_path: str,
                  processed_dir: str,
-                 flask_app_url: str = "http://192.168.10.37:5000",
+                 flask_app_url: str = "http://192.168.0.208:8000",
                  output_dir: str = "./predictions",
                  queue_maxsize: int = 10,
                  force_cpu: bool = False,model_updater : ModelUpdater = None):

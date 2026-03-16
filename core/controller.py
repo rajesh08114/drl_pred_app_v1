@@ -26,12 +26,12 @@ class PipelineController:
         self.suspicious_count = 0
         self.recent_detections: List[Dict[str, Any]] = []
         self.start_time: Optional[datetime] = None
-        self.model_path="/home/bot/Desktop/drl_app-detect/detection_module/trained_models/final_drl1.pt"
+        self.model_path = str(config.MODEL_PATH)
 
         self.model_updater = ModelUpdater(
-                    model_api_url="http://192.168.10.37:5000/api/pipeline/model/download",
+                    model_api_url=config.MODEL_API_URL,
                     current_model_path=self.model_path,
-                    update_interval_hours=2
+                    update_interval_hours=config.MODEL_UPDATE_INTERVAL_HOURS
                 )
 
         self.model_updater.start_periodic_update()
@@ -48,9 +48,11 @@ class PipelineController:
                 
                 self.detect = LocalPredictionPipeline(
                     model_path=self.model_path,
-                    processed_dir="/home/bot/Desktop/drl_app-detect/capapp/features_output",
-                    output_dir="./data/predictions",
-                    force_cpu=True,
+                    processed_dir=str(config.PROCESSED_FEATURES_DIR),
+                    flask_app_url=config.FLASK_APP_URL,
+                    output_dir=str(config.PREDICTION_OUTPUT_DIR),
+                    queue_maxsize=config.QUEUE_MAXSIZE,
+                    force_cpu=config.FORCE_CPU,
                     model_updater= self.model_updater
                 )
                 
